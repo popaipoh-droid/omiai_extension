@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Omiai Footprint Click Walker (smart scroll integrated)
+// @name         Omiai Footprint Click Walker (smart scroll + random dwell)
 // @namespace    https://example.com/
-// @version      1.4
-// @description  一覧を順番に開いて足跡付け。尽きたら年齢条件を変更して再実行。年齢画面はヘッダーの戻る(chevron)で戻してから「この条件で検索」実行。末尾では上→下パルスで読み込み促進→出なければ終了。内部スクロールコンテナに対応。
+// @version      1.5
+// @description  一覧を順番に開いて足跡付け。尽きたら年齢条件を変更して再実行。年齢画面はヘッダーの戻る(chevron)で戻してから「この条件で検索」実行。末尾では上→下パルスで読み込み促進→出なければ終了。内部スクロールコンテナに対応。滞在秒数は 2〜指定値 のランダム。
 // @match        https://www.omiai-jp.com/search*
 // @match        https://omiai-jp.com/search*
 // @run-at       document-idle
@@ -13,7 +13,7 @@
   'use strict';
 
   /*** 設定（UIから変更可） ***/
-  let BASE_WAIT_SEC = 6;       // プロフ滞在(秒)
+  let BASE_WAIT_SEC = 6;       // プロフ滞在の「最大」秒（実際は 2〜この値 でランダム）
   let BETWEEN_WAIT_MS = 900;   // 次カードまで(ミリ秒)
   let MAX_COUNT = 0;           // 1サイクル上限(0=無制限)
   let MAX_AUTO_SCROLL = 14;    // 未処理カード探しスクロール回数
@@ -43,6 +43,8 @@
 
   /*** ユーティリティ ***/
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
   async function waitFor(cond, timeout = 15000, interval = 150) {
     const end = Date.now() + timeout;
     while (Date.now() < end) {
@@ -128,7 +130,6 @@
   }
   function collectScrollables() {
     const candidates = [];
-    // よくありそうな候補を先に
     const hinted = [
       document.querySelector('#wrapBox'),
       document.querySelector('.WrapBox__StyledWrapBox'),
@@ -138,12 +139,10 @@
     ].filter(Boolean);
     hinted.forEach(el => { if (isScrollable(el)) candidates.push(el); });
 
-    // 汎用収集
     document.querySelectorAll('div,main,section,article').forEach(el => {
       if (isScrollable(el)) candidates.push(el);
     });
 
-    // 重複排除 & スクロール可能量の大きい順
     const uniq = Array.from(new Set(candidates));
     uniq.sort((a, b) =>
       (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight)
@@ -174,7 +173,6 @@
     FALLBACKS = [getWindowTarget(), ...list.map(makeElTarget)];
     SCROLL_TARGET = FALLBACKS[0];
     updateTargetBadge();
-    // console.log('[FW] Scroll target selected:', SCROLL_TARGET?.type, SCROLL_TARGET?.el);
   }
   async function scrollBySmart(delta) {
     const tryTargets = [SCROLL_TARGET, ...FALLBACKS.filter(t => t !== SCROLL_TARGET)];
@@ -184,12 +182,11 @@
       await sleep(80);
       const after = t.top;
       if (Math.abs(after - before) >= Math.min(8, Math.abs(delta) * 0.2)) {
-        SCROLL_TARGET = t; // 効いたターゲットを採用
+        SCROLL_TARGET = t;
         updateTargetBadge();
         return true;
       }
     }
-    // 効かなかったら再検出して再トライ（1回だけ）
     pickBestTarget();
     const t = SCROLL_TARGET;
     const before = t.top;
@@ -277,7 +274,7 @@
     btn.scrollIntoView({ block: 'center', behavior: 'auto' });
     await sleep(120);
     clickInside(btn);
-    await sleep(3000); // 指定：3秒待機
+    await sleep(3000);
   }
   async function openAgeSection() {
     const ok = await waitFor(() => !!findAgeLabel(), 6000, 100);
@@ -286,7 +283,7 @@
     node.scrollIntoView({ block: 'center', behavior: 'auto' });
     await sleep(100);
     clickInside(node);
-    await sleep(2000); // 指定：2秒待機
+    await sleep(2000);
   }
   async function waitForAgeSelects(timeout = 8000) {
     const ok = await waitFor(() => {
@@ -347,15 +344,12 @@
     let baseSig = getLastCardSignature();
 
     for (let i = 0; i < maxBursts; i++) {
-      // ① 一瞬だけ上に戻す（上パルス）
       await scrollBySmart(-PRIME_UP_PULSE_PX);
       await sleep(PRIME_UP_SETTLE_MS + Math.floor(Math.random() * 120));
 
-      // ② 大きく下へ（本命スクロール）
       await scrollBySmart(PRIME_STEP_PX);
       await sleep(PRIME_SETTLE_MS + Math.floor(Math.random() * 300));
 
-      // 新規カードが増えた or 末尾カードが変わったら成功
       const newCount = getCardElements().length;
       const newSig = getLastCardSignature();
       if (newCount > baseCount || newSig !== baseSig) {
@@ -376,7 +370,7 @@
     }
     #omiai-footprint-panel .row { display:flex; gap:8px; align-items:center; margin:4px 0; flex-wrap:wrap; }
     #omiai-footprint-panel .row label { display:flex; align-items:center; gap:6px; }
-    #omiai-footprint-panel input[type=number] { width: 68px; }
+    #omiai-footprint-panel input[type=number] { width: 76px; }
     #omiai-footprint-panel input[type=checkbox] { transform: translateY(1px); }
     #omiai-footprint-panel button {
       margin: 4px 4px 0 0; padding: 6px 10px; border: 0; border-radius: 8px; cursor: pointer;
@@ -391,17 +385,18 @@
   panel.innerHTML = `
     <div style="margin-bottom:6px"><b>Footprint Walker</b>
       <span class="pill" id="fw-target">–</span>
-      <button id="fw-repick" style="background:#fbbf24;color:#000; float:right; margin-top:-2px;">ターゲット再検出</button>
     </div>
 
     <div class="row">
-      <label>待機秒 <input id="fw-wait" type="number" min="1" value="${BASE_WAIT_SEC}"></label>
-      <label>上限 <input id="fw-max" type="number" min="0" value="${MAX_COUNT}"></label>
+      <label>巡回秒数(最大) <input id="fw-wait" type="number" min="2" value="${BASE_WAIT_SEC}"></label>
+      <label>最大巡回人数 <input id="fw-max" type="number" min="0" value="${MAX_COUNT}"></label>
     </div>
+    <div class="row"><small class="muted">※0は指定なし。滞在は 2〜指定秒 でランダム（1秒は使用しません）</small></div>
 
     <hr>
 
     <div class="row">
+      <span class="pill">対象がなくなった場合に年齢条件を変更して再実行します</span>
       <label><input id="fw-agecb" type="checkbox" ${AGE_SWEEP_ENABLED ? 'checked' : ''}> 年齢スイープを使う</label>
     </div>
     <div class="row">
@@ -411,13 +406,16 @@
     </div>
     <div class="row">
       <label><input id="fw-age-first" type="checkbox" ${AGE_SET_BEFORE_FIRST ? 'checked' : ''}> 初回開始前にも適用</label>
-      <span class="pill">『この条件で検索』まで自動処理</span>
     </div>
 
-    <div class="row">
+    <hr>
+
+    <div class="row" style="justify-content:flex-end; flex-wrap:nowrap">
       <button id="fw-start" style="background:#38bdf8;color:#000">開始</button>
       <button id="fw-stop"  style="background:#fca5a5;color:#000">停止</button>
     </div>
+
+    <hr>
 
     <div id="fw-status" style="margin-top:6px"><small class="muted">待機中</small></div>
   `;
@@ -463,15 +461,14 @@
 
       const next = await findNextCard();
       if (!next) {
-        // 末尾：読み込み促進スクロールを実施
         setStatus('候補が尽きました。上→下パルスで読み込みを促進中…');
         const loaded = await forceLoadMoreAndWait();
         if (loaded) {
           setStatus('追加の候補を検出。続行します。');
-          continue; // 新規カードが入ったので再探索
+          continue;
         }
         setStatus('新しい候補が一定時間出ませんでした（年齢サイクル終了）。');
-        break; // 本当に尽きた
+        break;
       }
 
       const { card, id } = next;
@@ -492,7 +489,10 @@
         }
       }
 
-      await sleep(BASE_WAIT_SEC * 1000);
+      // ★ ランダム滞在（2〜BASE_WAIT_SEC 秒）
+      const dwellSec = Math.max(2, randInt(2, Math.max(2, BASE_WAIT_SEC)));
+      setStatus(`プロフィール閲覧中… 約 ${dwellSec} 秒`);
+      await sleep(dwellSec * 1000);
 
       if (id) doneIds.add(id);
       processed++;
@@ -500,7 +500,6 @@
       history.back();
       await waitFor(onListPage, 12000, 150);
 
-      // 戻り直後のナッジスクロールで描画を促進（smart scroll）
       await scrollBySmart(NUDGE_SCROLL_PX);
       await sleep(NUDGE_SETTLE_MS);
 
@@ -512,8 +511,8 @@
     running = true;
     sweeping = AGE_SWEEP_ENABLED;
 
-    // UIから読み込み
-    BASE_WAIT_SEC = Math.max(1, parseInt($('#fw-wait').value || '6', 10));
+    // UIから読み込み（最小2秒を保証）
+    BASE_WAIT_SEC = Math.max(2, parseInt($('#fw-wait').value || '6', 10));
     MAX_COUNT = Math.max(0, parseInt($('#fw-max').value || '0', 10));
     AGE_SWEEP_ENABLED = $('#fw-agecb').checked;
     AGE_START = Math.max(18, Math.min(99, parseInt($('#fw-age-start').value || AGE_START, 10)));
@@ -521,7 +520,10 @@
     AGE_STEP = Math.max(1, parseInt($('#fw-age-step').value || AGE_STEP, 10));
     AGE_SET_BEFORE_FIRST = $('#fw-age-first').checked;
 
-    // スクロールターゲットを最初に選定（初回の取りこぼし対策で二段構え）
+    // 入力の見た目も補正（2未満を防ぐ）
+    $('#fw-wait').value = BASE_WAIT_SEC;
+
+    // スクロールターゲット初期化（2段構え）
     pickBestTarget();
     await sleep(300);
     pickBestTarget();
@@ -532,13 +534,13 @@
       setStatus(`初回条件適用: 年齢 ${ageCursor}歳…`);
       try { await applyAgeFilter(ageCursor); } catch (e) { console.warn('[FW] 初回フィルタ適用エラー', e); }
       doneIds.clear();
-      try { window.scrollTo(0, 0); } catch {}
+      try { window.scrollTo(0, 0); } catch { }
       await waitFor(() => document.querySelector(CARD_SELECTOR), 8000, 150);
     }
 
     while (running) {
       doneIds.clear();
-      try { window.scrollTo(0, 0); } catch {}
+      try { window.scrollTo(0, 0); } catch { }
       setStatus('一覧の検出中…');
       const ok = await waitFor(() => document.querySelector(CARD_SELECTOR), 15000, 200);
       if (!ok) {
@@ -578,9 +580,8 @@
   // UIイベント
   $('#fw-start').addEventListener('click', () => { if (!running) runAll(); });
   $('#fw-stop').addEventListener('click', () => { running = false; sweeping = false; setStatus('停止しました'); });
-  $('#fw-repick').addEventListener('click', () => { pickBestTarget(); setStatus('スクロールターゲットを再検出しました'); });
 
-  // 初期ターゲット試行（ユーザー報告の初回取りこぼしに対処）
+  // 初期ターゲット試行（初回取りこぼし対策）
   (async () => {
     pickBestTarget();
     await sleep(300);
