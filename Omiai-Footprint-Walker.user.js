@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Omiai Footprint Click Walker (smart scroll + random dwell)
+// @name         Omiai Footprint Walker (smart scroll + random dwell + human profile scroll)
 // @namespace    https://example.com/
-// @version      1.5
-// @description  一覧を順番に開いて足跡付け。尽きたら年齢条件を変更して再実行。年齢画面はヘッダーの戻る(chevron)で戻してから「この条件で検索」実行。末尾では上→下パルスで読み込み促進→出なければ終了。内部スクロールコンテナに対応。滞在秒数は 2〜指定値 のランダム。
+// @version      1.6
+// @description  一覧を順番に開いて足跡付け。尽きたら年齢条件を変更して再実行。年齢画面はヘッダーの戻る(chevron)で戻してから「この条件で検索」実行。末尾では上→下パルスで読み込み促進→出なければ終了。内部スクロールコンテナに対応。滞在秒数は 2〜指定値 のランダム。プロフィール内に人間っぽいランダムスクロールを挿入。
 // @match        https://www.omiai-jp.com/search*
 // @match        https://omiai-jp.com/search*
 // @run-at       document-idle
@@ -13,7 +13,7 @@
   'use strict';
 
   /*** 設定（UIから変更可） ***/
-  let BASE_WAIT_SEC = 6;       // プロフ滞在の「最大」秒（実際は 2〜この値 でランダム）
+  let BASE_WAIT_SEC = 8;       // プロフ滞在の「最大」秒（実際は 2〜この値 でランダム）
   let BETWEEN_WAIT_MS = 900;   // 次カードまで(ミリ秒)
   let MAX_COUNT = 0;           // 1サイクル上限(0=無制限)
   let MAX_AUTO_SCROLL = 14;    // 未処理カード探しスクロール回数
@@ -24,6 +24,15 @@
   let AGE_END = 36;
   let AGE_STEP = 1;
   let AGE_SET_BEFORE_FIRST = false;
+
+  // プロフィール内「人っぽい」スクロール
+  let PROF_SCROLL_ENABLED = true;   // ランダムスクロールON/OFF（UI）
+  let PROF_SCROLL_MAX_MOVES = 6;    // 滞在中に最大何回スクロールするか（1〜6の範囲を推奨）
+  const PROF_STEP_MIN = 300;        // 1回のスクロール量(最小px)
+  const PROF_STEP_MAX = 1200;       // 1回のスクロール量(最大px)
+  const PROF_PAUSE_MIN = 300;       // スクロール間の待機(最小ms)
+  const PROF_PAUSE_MAX = 1000;      // スクロール間の待機(最大ms)
+  const PROF_BACK_JIGGLE_P = 0.4;   // スクロール後にちょい戻しする確率
 
   // 末尾での読み込み促進（スワイプ相当）
   const PRIME_BURSTS = 10;        // 連続スクロール試行回数
@@ -359,6 +368,57 @@
     return false;
   }
 
+  /*** プロフィール閲覧中の人間っぽいスクロール ***/
+  function snapshotScrollTarget() {
+    return { target: SCROLL_TARGET, fallbacks: [...FALLBACKS] };
+  }
+  function restoreScrollTarget(snap) {
+    if (!snap) return;
+    SCROLL_TARGET = snap.target;
+    FALLBACKS = snap.fallbacks;
+    updateTargetBadge();
+  }
+  async function humanScrollDuring(msTotal) {
+    if (!PROF_SCROLL_ENABLED || msTotal < 500) {
+      await sleep(msTotal);
+      return;
+    }
+    const snap = snapshotScrollTarget();
+    // プロフページのスクロールターゲットに合わせ直し
+    pickBestTarget();
+    await sleep(50);
+
+    const moves = Math.max(1, Math.min(PROF_SCROLL_MAX_MOVES, randInt(1, PROF_SCROLL_MAX_MOVES)));
+    const deadline = Date.now() + msTotal;
+
+    for (let i = 0; i < moves; i++) {
+      const now = Date.now();
+      if (now >= deadline - 250) break;
+
+      const waitMs = randInt(PROF_PAUSE_MIN, PROF_PAUSE_MAX);
+      if (now + waitMs >= deadline) {
+        await sleep(Math.max(0, deadline - Date.now()));
+        break;
+      }
+      await sleep(waitMs);
+
+      const dir = Math.random() < 0.72 ? 1 : -1; // 下7：上3 くらい
+      const step = randInt(PROF_STEP_MIN, PROF_STEP_MAX) * dir;
+      await scrollBySmart(step);
+
+      // ちょい戻し（読む動き）
+      if (Math.random() < PROF_BACK_JIGGLE_P) {
+        await sleep(randInt(150, 400));
+        await scrollBySmart(-Math.sign(step) * randInt(80, 180));
+      }
+    }
+
+    const remain = deadline - Date.now();
+    if (remain > 0) await sleep(remain);
+
+    restoreScrollTarget(snap);
+  }
+
   /*** UI パネル ***/
   GM_addStyle(`
     #omiai-footprint-panel {
@@ -366,7 +426,7 @@
       background: rgba(0,0,0,.75); color: #fff; padding: 10px 12px;
       border-radius: 12px; font: 12px/1.4 system-ui, -apple-system, sans-serif;
       box-shadow: 0 8px 24px rgba(0,0,0,.35);
-      width: 340px;
+      width: 360px;
     }
     #omiai-footprint-panel .row { display:flex; gap:8px; align-items:center; margin:4px 0; flex-wrap:wrap; }
     #omiai-footprint-panel .row label { display:flex; align-items:center; gap:6px; }
@@ -392,6 +452,14 @@
       <label>最大巡回人数 <input id="fw-max" type="number" min="0" value="${MAX_COUNT}"></label>
     </div>
     <div class="row"><small class="muted">※0は指定なし。滞在は 2〜指定秒 でランダム（1秒は使用しません）</small></div>
+
+    <hr>
+
+    <div class="row">
+      <span class="pill">プロフ内スクロール</span>
+      <label><input id="fw-profscroll" type="checkbox" ${PROF_SCROLL_ENABLED ? 'checked' : ''}> 有効にする</label>
+      <label>最大回数 <input id="fw-profscroll-max" type="number" min="1" max="6" value="${PROF_SCROLL_MAX_MOVES}"></label>
+    </div>
 
     <hr>
 
@@ -489,10 +557,10 @@
         }
       }
 
-      // ★ ランダム滞在（2〜BASE_WAIT_SEC 秒）
+      // ★ ランダム滞在（2〜BASE_WAIT_SEC 秒）＋ プロフ内スクロール
       const dwellSec = Math.max(2, randInt(2, Math.max(2, BASE_WAIT_SEC)));
       setStatus(`プロフィール閲覧中… 約 ${dwellSec} 秒`);
-      await sleep(dwellSec * 1000);
+      await humanScrollDuring(dwellSec * 1000);
 
       if (id) doneIds.add(id);
       processed++;
@@ -514,6 +582,10 @@
     // UIから読み込み（最小2秒を保証）
     BASE_WAIT_SEC = Math.max(2, parseInt($('#fw-wait').value || '6', 10));
     MAX_COUNT = Math.max(0, parseInt($('#fw-max').value || '0', 10));
+
+    PROF_SCROLL_ENABLED = $('#fw-profscroll').checked;
+    PROF_SCROLL_MAX_MOVES = Math.max(1, Math.min(6, parseInt($('#fw-profscroll-max').value || PROF_SCROLL_MAX_MOVES, 10)));
+
     AGE_SWEEP_ENABLED = $('#fw-agecb').checked;
     AGE_START = Math.max(18, Math.min(99, parseInt($('#fw-age-start').value || AGE_START, 10)));
     AGE_END = Math.max(AGE_START, Math.min(99, parseInt($('#fw-age-end').value || AGE_END, 10)));
