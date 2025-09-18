@@ -1,12 +1,15 @@
 // ==UserScript==
-// @name         Omiai Footprint Walker (smart scroll + random dwell + human profile scroll)
-// @namespace    https://example.com/
-// @version      1.6
-// @description  一覧を順番に開いて足跡付け。尽きたら年齢条件を変更して再実行。年齢画面はヘッダーの戻る(chevron)で戻してから「この条件で検索」実行。末尾では上→下パルスで読み込み促進→出なければ終了。内部スクロールコンテナに対応。滞在秒数は 2〜指定値 のランダム。プロフィール内に人間っぽいランダムスクロールを挿入。
+// @name         Omiai Footprint Walker
+// @namespace    https://footprinter.note
+// @version      1.5.1
+// @description  Omiaiの一覧を順番に開いて足跡付け（人間ぽいランダム滞在＆スクロール、年齢スイープ、自動読み込み対応）
 // @match        https://www.omiai-jp.com/search*
 // @match        https://omiai-jp.com/search*
 // @run-at       document-idle
 // @grant        GM_addStyle
+// @downloadURL  https://github.com/popaipoh-droid/omiai_extension/raw/refs/heads/main/Omiai-Footprint-Walker.user.js
+// @updateURL    https://github.com/popaipoh-droid/omiai_extension/raw/refs/heads/main/Omiai-Footprint-Walker.user.js
+
 // ==/UserScript==
 
 (function () {
