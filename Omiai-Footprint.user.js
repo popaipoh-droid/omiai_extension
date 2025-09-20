@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Omiai Footprint Loader (CF Trial/Pro, upgrade button + clean switch)
+// @name         Omiai_Footprint
 // @namespace    https://footprinter.app/
-// @version      0.8.0
+// @version      1.1.0
 // @description  Cloud Functions から Trial/Pro エンジンを取得。Trialに「製品版にする」ボタンを注入。PRO化時は体験版UIを強制撤去＆停止。
 // @match        https://www.omiai-jp.com/search*
 // @match        https://omiai-jp.com/search*
