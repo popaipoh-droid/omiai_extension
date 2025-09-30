@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Omiai_Footprint TEST
+// @name         Omiai_Footprint
 // @namespace    https://footprinter.app/
 // @version      1.3.0
 // @description  Cloud Functions から Trial/Pro エンジンを取得。Trialに「製品版にする」ボタンを注入。PRO化時は体験版UIを強制撤去＆停止。/search 以外ではUIを自動非表示。★ビジーフラグ/ハートビート送信でAI側の自動起動を抑止
