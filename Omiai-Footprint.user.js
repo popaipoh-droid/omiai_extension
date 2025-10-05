@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Omiai_Footprint
-// @namespace    https://footprinter.app/
-// @version      1.3.0
-// @description  Cloud Functions から Trial/Pro エンジンを取得。Trialに「製品版にする」ボタンを注入。PRO化時は体験版UIを強制撤去＆停止。/search 以外ではUIを自動非表示。★ビジーフラグ/ハートビート送信でAI側の自動起動を抑止
+// @namespace    https://note.com/footprinter/n/n3b477dc863a3?sub_rt=share_sb
+// @version      1.3.1
+// @description  Cloud Functions から Trial/Pro エンジンを取得。Trialに「製品版にする」ボタンを注入。PRO化時は体験版UIを強制撤去＆停止。/search 以外ではUIを自動非表示。★ビジーフラグ/ハートビート送信でAI側の自動起動を抑止。PC版ではユーザーの「非表示」状態を尊重して再表示しない。
 // @match        https://www.omiai-jp.com/search*
 // @match        https://omiai-jp.com/search*
 // @run-at       document-start
@@ -22,6 +22,7 @@
   // const ENDPOINT = 'https://omiai-footprint-test-435226602223.asia-northeast1.run.app'; // test
 
   const LS_KEY = 'fw_license_key';
+  const UI_HIDE_KEY = 'fw_ui_hidden'; // ★ PRO側の「非表示」状態を尊重するためのフラグ
   const loadKey = () => { try { return localStorage.getItem(LS_KEY) || '' } catch { return '' } };
   const saveKey = (v) => { try { localStorage.setItem(LS_KEY, v || '') } catch { } };
 
@@ -88,12 +89,24 @@
     return /^\/search(?:[/?#]|$)/.test(location.pathname);
   }
 
+  // ★ 修正：ユーザーが PRO 側で押した「非表示」状態（fw_ui_hidden）を尊重
   function togglePanelsForCurrentURL() {
-    const visible = onSearchPage();
+    const onSearch = onSearchPage();
+
+    // FAB の表示からも推測してよいが、確実性のため localStorage を主に参照
+    const userHidden = (function(){
+      try { return localStorage.getItem(UI_HIDE_KEY) === '1'; } catch { return false; }
+    })();
+
     for (const id of PANEL_IDS) {
       const el = document.getElementById(id);
       if (!el) continue;
-      el.style.display = visible ? '' : 'none';
+
+      // /search 以外 → 常に非表示
+      if (!onSearch) { el.style.display = 'none'; continue; }
+
+      // /search 上でも、ユーザーが「非表示」中は再表示しない
+      el.style.display = userHidden ? 'none' : '';
     }
   }
 
