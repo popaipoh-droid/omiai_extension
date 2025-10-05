@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Omiai_AI_Assistant
 // @namespace    https://footprinter.app/
-// @version      1.2.0
+// @version      1.2.1
 // @description  /profile と /messages/detail で Cloud Functions から AIアシスタントUI（PRO/Trial）を取得して実行。二重実行ガード・IIFEラップ・in-flightガード。足跡ツールのBusyフラグ/ハートビートを検知して起動を抑止し、解除時に自動起動。
 // @match        https://www.omiai-jp.com/*
 // @match        https://omiai-jp.com/*
@@ -11,6 +11,8 @@
 // @grant        GM_registerMenuCommand
 // @connect      omiai-ai-loader-ui-435226602223.asia-northeast1.run.app
 // @connect      *.run.app
+// @downloadURL  https://github.com/popaipoh-droid/omiai_extension/raw/refs/heads/main/Omiai-AI-Assistant.user.js
+// @updateURL    https://github.com/popaipoh-droid/omiai_extension/raw/refs/heads/main/Omiai-AI-Assistant.user.js
 // ==/UserScript==
 
 (function () {
