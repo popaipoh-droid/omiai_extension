@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name         Omiai_Footprint
-// @namespace    https://note.com/footprinter/n/n3b477dc863a3?sub_rt=share_sb
+// @name         Omiai_Footprint-test
+// @namespace    https://footprinter.app/
 // @version      1.3.1
 // @description  Cloud Functions から Trial/Pro エンジンを取得。Trialに「製品版にする」ボタンを注入。PRO化時は体験版UIを強制撤去＆停止。/search 以外ではUIを自動非表示。★ビジーフラグ/ハートビート送信でAI側の自動起動を抑止。PC版ではユーザーの「非表示」状態を尊重して再表示しない。
 // @match        https://www.omiai-jp.com/search*
@@ -12,7 +12,10 @@
 // @connect      omiai-footprint-435226602223.asia-northeast1.run.app
 // @connect      omiai-footprint-test-435226602223.asia-northeast1.run.app
 // @connect      *.run.app
+// @downloadURL  https://github.com/popaipoh-droid/omiai_extension/raw/refs/heads/main/Omiai-Footprint.user.js
+// @updateURL    https://github.com/popaipoh-droid/omiai_extension/raw/refs/heads/main/Omiai-Footprint.user.js
 // ==/UserScript==
+
 
 (function () {
   'use strict';
