@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Omiai_Footprint-test
+// @name         Omiai_Footprint(PC)
 // @namespace    https://footprinter.app/
-// @version      1.3.1
-// @description  Cloud Functions から Trial/Pro エンジンを取得。Trialに「製品版にする」ボタンを注入。PRO化時は体験版UIを強制撤去＆停止。/search 以外ではUIを自動非表示。★ビジーフラグ/ハートビート送信でAI側の自動起動を抑止。PC版ではユーザーの「非表示」状態を尊重して再表示しない。
+// @version      1.2
+// @description  Cloud Functions から Trial/Pro エンジンを取得。
 // @match        https://www.omiai-jp.com/search*
 // @match        https://omiai-jp.com/search*
 // @run-at       document-start
