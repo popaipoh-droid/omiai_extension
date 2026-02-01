@@ -11,8 +11,8 @@
 // @grant        GM_addStyle
 // @connect      omiai-footprint-android-435226602223.asia-northeast1.run.app
 // @connect      *.run.app
-// @downloadURL  https://github.com/popaipoh-droid/omiai_extension/raw/refs/heads/main/Omiai-Footprint.user.js
-// @updateURL    https://github.com/popaipoh-droid/omiai_extension/raw/refs/heads/main/Omiai-Footprint.user.js
+// @downloadURL  https://github.com/popaipoh-droid/omiai_extension/raw/refs/heads/main/Omiai-Footprint-Android.user.js
+// @updateURL    https://github.com/popaipoh-droid/omiai_extension/raw/refs/heads/main/Omiai-Footprint-Android.user.js
 // ==/UserScript==
 
 (function () {
